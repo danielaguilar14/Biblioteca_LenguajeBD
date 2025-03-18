@@ -1,0 +1,1171 @@
+-- Tabla de Pagos
+CREATE TABLE PAGOS (
+    ID_PAGO NUMBER PRIMARY KEY,
+    ID_USUARIO NUMBER,
+    MONTO NUMBER(10, 2) NOT NULL,
+    FECHA_PAGO DATE NOT NULL,
+    CONSTRAINT FK_PAGO_USUARIO FOREIGN KEY (ID_USUARIO) REFERENCES USUARIOS(ID_USUARIO)
+);
+
+-- Tabla de Usuarios
+CREATE TABLE USUARIOS (
+    ID_USUARIO NUMBER PRIMARY KEY,
+    NOMBRE VARCHAR2(100) NOT NULL,
+    CORREO VARCHAR2(100) UNIQUE NOT NULL,
+    TELEFONO VARCHAR2(15),
+    ROL VARCHAR2(20) CHECK (ROL IN ('ADMIN', 'USUARIO'))
+);
+ALTER TABLE USUARIOS 
+ADD (APELLIDO VARCHAR2(100));
+
+-- Tabla de Libros
+CREATE TABLE LIBROS (
+    ID_LIBRO NUMBER PRIMARY KEY,
+    TITULO VARCHAR2(100) NOT NULL,
+    AUTOR VARCHAR2(100) NOT NULL,
+    CATEGORIA VARCHAR2(50),
+    DISPONIBLE CHAR(1) DEFAULT 'S' CHECK (DISPONIBLE IN ('S', 'N'))
+);
+
+-- Tabla de Préstamos
+CREATE TABLE PRESTAMOS (
+    ID_PRESTAMO NUMBER PRIMARY KEY,
+    ID_USUARIO NUMBER,
+    ID_LIBRO NUMBER,
+    FECHA_PRESTAMO DATE,
+    FECHA_DEVOLUCION DATE,
+    CONSTRAINT FK_PRESTAMO_USUARIO FOREIGN KEY (ID_USUARIO) REFERENCES USUARIOS(ID_USUARIO),
+    CONSTRAINT FK_PRESTAMO_LIBRO FOREIGN KEY (ID_LIBRO) REFERENCES LIBROS(ID_LIBRO)
+);
+
+-- Tabla de Reservas
+CREATE TABLE RESERVAS (
+    ID_RESERVA NUMBER PRIMARY KEY,
+    ID_USUARIO NUMBER,
+    ID_LIBRO NUMBER,
+    FECHA_RESERVA DATE,
+    CONSTRAINT FK_RESERVA_USUARIO FOREIGN KEY (ID_USUARIO) REFERENCES USUARIOS(ID_USUARIO),
+    CONSTRAINT FK_RESERVA_LIBRO FOREIGN KEY (ID_LIBRO) REFERENCES LIBROS(ID_LIBRO)
+);
+
+-- Tabla de Reportes
+CREATE TABLE REPORTES (
+    ID_REPORTE NUMBER PRIMARY KEY,
+    TIPO_REPORTE VARCHAR2(50),
+    FECHA_GENERACION DATE
+);
+
+
+----------------------------------
+ PROCEDIMIENTOS ALMACENADOS 
+----------------------------------
+
+--1. AGREGAR USUARIO
+
+CREATE OR REPLACE PROCEDURE SP_AGREGAR_USUARIO(
+    SP_NOMBRE IN VARCHAR2,
+    SP_CORREO IN VARCHAR2,
+    SP_TELEFONO IN VARCHAR2,
+    SP_ROL IN VARCHAR2
+)
+AS
+    CONTADOR NUMBER := 1;
+    VSUM NUMBER := 0;
+BEGIN
+    INSERT INTO USUARIOS(NOMBRE, CORREO, TELEFONO, ROL)
+    VALUES(SP_NOMBRE, SP_CORREO, SP_TELEFONO, SP_ROL);
+    
+    DBMS_OUTPUT.PUT_LINE('Usuario agregado: ' || SP_NOMBRE);
+    
+EXCEPTION
+    WHEN OTHERS THEN
+       DBMS_OUTPUT.PUT_LINE('Error: No se pudo agregar el usuario. Por favor, intente de nuevo');
+END;
+
+SET SERVEROUTPUT ON;
+
+EXEC SP_AGREGAR_USUARIO('Carlos López', 'carlos.lopez@email.com', '5552345678', 'USUARIO');
+
+--2. ELIMINAR USUARIO POR ID
+
+CREATE OR REPLACE PROCEDURE SP_ELIMINAR_USUARIO(
+    SP_ID_USUARIO IN NUMBER
+)
+AS
+    VCOUNT NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO VCOUNT 
+    FROM USUARIOS 
+    WHERE ID_USUARIO = SP_ID_USUARIO;
+    
+    IF VCOUNT > 0 THEN
+        DELETE FROM USUARIOS 
+        WHERE ID_USUARIO = SP_ID_USUARIO;
+      DBMS_OUTPUT.PUT_LINE('Usuario eliminado correctamente: ' || SP_ID_USUARIO);
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('Error: Usuario no encontrado.');
+    END IF;
+END;
+
+EXEC SP_ELIMINAR_USUARIO(1);
+
+
+--3. ACTUALIZAR DATOS USUARIO
+
+CREATE OR REPLACE PROCEDURE SP_ACTUALIZAR_USUARIO(
+    SP_ID IN NUMBER,
+    SP_NOMBRE IN VARCHAR2,
+    SP_CORREO IN VARCHAR2,
+    SP_TELEFONO IN VARCHAR2,
+    SP_ROL IN VARCHAR2
+)
+AS
+    VCOUNT NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO VCOUNT 
+    FROM USUARIOS 
+    WHERE ID_USUARIO = SP_ID;
+    
+    IF VCOUNT > 0 THEN
+        UPDATE USUARIOS
+        SET NOMBRE = SP_NOMBRE, 
+            CORREO = SP_CORREO, 
+            TELEFONO = SP_TELEFONO, 
+            ROL = SP_ROL
+        WHERE ID_USUARIO = SP_ID;
+        
+        DBMS_OUTPUT.PUT_LINE('Datos del usuario actualizados correctamente: ' || SP_ID);
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('Error: Usuario no encontrado.');
+    END IF;
+END;
+
+BEGIN 
+    SP_ACTUALIZAR_USUARIO(10, 'Sofía', 'sofia.fernandez@email.com', '6677889999', 'USUARIO'); 
+END;
+
+-- 4. AGREGAR NUEVO LIBRO
+CREATE OR REPLACE PROCEDURE SP_AGREGAR_LIBRO(
+    SP_ID IN NUMBER,
+    SP_TITULO IN VARCHAR2,
+    SP_AUTOR IN VARCHAR2,
+    SP_CATEGORIA IN VARCHAR2,
+    SP_DISPONIBLE IN CHAR
+)
+AS
+    VCOUNT NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO VCOUNT
+    FROM LIBROS
+    WHERE ID_LIBRO = SP_ID;
+    
+    IF VCOUNT = 0 THEN
+    INSERT INTO LIBROS(ID_LIBRO, TITULO, AUTOR, CATEGORIA, DISPONIBLE)
+        VALUES(SP_ID, SP_TITULO, SP_AUTOR, SP_CATEGORIA, SP_DISPONIBLE);
+        
+        COMMIT;
+        DBMS_OUTPUT.PUT_LINE('Libro agregado correctamente: ' || SP_TITULO);
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('Error: El libro con ID ' || SP_ID || ' ya existe.');
+    END IF;
+END;
+
+EXEC SP_AGREGAR_LIBRO(1, 'El Gran Gatsby', 'F. Scott Fitzgerald', 'Ficción', 'S');
+
+EXEC SP_AGREGAR_LIBRO(125, 'El conde de Montecristo', 'Alexandre Dumas', 'Aventura', 'S');
+
+--5. ACTUALIZAR LIBRO
+
+CREATE OR REPLACE PROCEDURE SP_ACTUALIZAR_LIBRO(
+    SP_ID IN NUMBER,
+    SP_TITULO IN VARCHAR2,
+    SP_AUTOR IN VARCHAR2,
+    SP_CATEGORIA IN VARCHAR2,
+    SP_DISPONIBLE IN CHAR
+)
+AS
+    VCOUNT NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO VCOUNT
+    FROM LIBROS
+    WHERE ID_LIBRO = SP_ID;
+    
+    IF VCOUNT > 0 THEN
+        UPDATE LIBROS
+        SET TITULO = SP_TITULO,
+            AUTOR = SP_AUTOR,
+            CATEGORIA = SP_CATEGORIA,
+            DISPONIBLE = SP_DISPONIBLE
+        WHERE ID_LIBRO = SP_ID;
+        
+        COMMIT;
+        DBMS_OUTPUT.PUT_LINE('Libro actualizado correctamente: ' || SP_TITULO);
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('Error: El libro con ID ' || SP_ID || ' no existe.');
+    END IF;
+END;
+
+EXEC SP_ACTUALIZAR_LIBRO(122, 'Alicia en el país de las maravillas', 'Lewis Carroll', 'Fantasía', 'N');
+
+--cuando no existe el libro
+EXEC SP_ACTUALIZAR_LIBRO(127, 'Alicia a través del espejo', 'Lewis Carroll', 'Fantasía', 'N');
+
+
+-- 6. ELIMINAR LIBRO POR ID
+
+CREATE OR REPLACE PROCEDURE SP_ELIMINAR_LIBRO(
+    SP_ID_LIBRO IN NUMBER
+)
+AS
+    VCOUNT NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO VCOUNT 
+    FROM LIBROS
+    WHERE ID_LIBRO = SP_ID_LIBRO;
+    
+    IF VCOUNT > 0 THEN
+        DELETE FROM LIBROS
+        WHERE ID_LIBRO = SP_ID_LIBRO;
+      DBMS_OUTPUT.PUT_LINE('El libro ha sido eliminado correctamente: ' || SP_ID_LIBRO);
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('Error: Libro no encontrado.');
+    END IF;
+END;
+
+EXEC SP_ELIMINAR_LIBRO(115);
+
+EXEC SP_ELIMINAR_LIBRO(190); -- No existe
+
+
+--7. FECHA DE DEVOLUCION ACTUALIZADA
+
+CREATE OR REPLACE PROCEDURE SP_ACTUALIZA_FECHA_DEVOLUCION(
+    SP_ID_PRESTAMO IN NUMBER,
+    SP_FECHA_ACTUALIZADA IN DATE
+)
+AS
+BEGIN
+    UPDATE PRESTAMOS
+    SET FECHA_DEVOLUCION = SP_FECHA_ACTUALIZADA
+    WHERE ID_PRESTAMO = SP_ID_PRESTAMO;
+END;
+
+--- Probamos:
+INSERT INTO PRESTAMOS (ID_PRESTAMO, FECHA_DEVOLUCION)
+VALUES (190, TO_DATE('2025-04-01', 'YYYY-MM-DD'));
+
+EXEC SP_ACTUALIZA_FECHA_DEVOLUCION(190, TO_DATE('2025-05-01', 'YYYY-MM-DD'));
+
+
+--8. RESERVAR LIBRO
+
+CREATE OR REPLACE PROCEDURE SP_RESERVAR_LIBRO(
+    SP_ID_RESERVA IN NUMBER,
+    SP_ID_USUARIO IN NUMBER,
+    SP_ID_LIBRO IN NUMBER,
+    SP_FECHA_RESERVACION IN DATE
+)
+AS
+    V_COUNT NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO V_COUNT
+    FROM RESERVAS
+    WHERE ID_USUARIO = SP_ID_USUARIO
+      AND ID_LIBRO = SP_ID_LIBRO
+      AND FECHA_RESERVA = SP_FECHA_RESERVACION;
+    
+    IF V_COUNT > 0 THEN
+        DBMS_OUTPUT.PUT_LINE('Lo siento. El libro ya se encuentra reservado.');
+    ELSE
+        INSERT INTO RESERVAS (ID_RESERVA, ID_USUARIO, ID_LIBRO, FECHA_RESERVA)
+        VALUES (SP_ID_RESERVA, SP_ID_USUARIO, SP_ID_LIBRO, SP_FECHA_RESERVACION);
+        
+        COMMIT;
+        DBMS_OUTPUT.PUT_LINE('Reserva realizada con éxito: ' || SP_ID_RESERVA);
+    END IF;
+END;
+
+INSERT INTO LIBROS (ID_LIBRO, TITULO, AUTOR, CATEGORIA, DISPONIBLE) 
+VALUES (203, 'Sobreviviendo a las Sombras', 'Darling Salas', 'Poemario', 'N');
+
+INTO USUARIOS (ID_USUARIO, NOMBRE, APELLIDO, CORREO, TELEFONO, ROL) 
+    VALUES (12, 'Miguel', 'Azofeifa', 'miguel.azofeifa@email.com', '9876543210', 'USUARIO')
+
+EXEC SP_RESERVAR_LIBRO(1, 12, 203, TO_DATE('2025-03-20', 'YYYY-MM-DD'));
+
+-- 9. PRESTAMO LIBRO
+
+CREATE OR REPLACE PROCEDURE SP_PRESTAMO(
+    SP_ID_PRESTAMO IN NUMBER,
+    SP_ID_USUARIO IN NUMBER,
+    SP_ID_LIBRO IN NUMBER,
+    SP_FECHA_PRESTAMO IN DATE,
+    SP_FECHA_DEVOLUCION IN DATE
+)
+AS
+    RESERVADO NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO RESERVADO
+    FROM RESERVAS
+    WHERE ID_LIBRO = SP_ID_LIBRO
+      AND FECHA_RESERVA = SP_FECHA_PRESTAMO;
+    
+    IF RESERVADO > 0 THEN
+        DBMS_OUTPUT.PUT_LINE('Lo siento. El libro no está disponible para préstamo porque está reservado.');
+        RETURN;
+    END IF;
+    
+    INSERT INTO PRESTAMOS (ID_PRESTAMO, ID_USUARIO, ID_LIBRO, FECHA_PRESTAMO, FECHA_DEVOLUCION)
+    VALUES (SP_ID_PRESTAMO, SP_ID_USUARIO, SP_ID_LIBRO, SP_FECHA_PRESTAMO, SP_FECHA_DEVOLUCION);
+    
+    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('Préstamo realizado con éxito: ' || SP_ID_PRESTAMO);
+END;
+
+
+EXEC SP_PRESTAMO(1, 12, 203, TO_DATE('2025-03-20', 'YYYY-MM-DD'), TO_DATE('2025-04-20', 'YYYY-MM-DD'));
+
+--10. ELIMINAR PRESTAMO LIBRO
+
+CREATE OR REPLACE PROCEDURE SP_ELIMINAR_PRESTAMO(SP_ID IN NUMBER)
+AS
+BEGIN
+    DELETE FROM PRESTAMOS
+    WHERE ID_PRESTAMO = SP_ID;
+END;
+
+--hacemos la prueba: 
+INSERT INTO LIBROS (ID_LIBRO, TITULO, AUTOR)
+VALUES (178, 'Lágrimas Sigilosas', 'Darling');
+
+INSERT INTO PRESTAMOS (ID_PRESTAMO, ID_LIBRO, FECHA_PRESTAMO)
+VALUES (1005, 178, TO_DATE('2025-03-18', 'YYYY-MM-DD'));
+
+EXEC SP_ELIMINAR_PRESTAMO(1005);
+
+
+--11. PRESTAMOS ACTIVOS DE UN SUUARIO
+
+CREATE OR REPLACE PROCEDURE SP_PRESTAMOS_ACTIVOS (SP_ID_USUARIO IN NUMBER)
+AS
+    CURSOR C_PRESTAMOS IS
+        SELECT ID_PRESTAMO
+        FROM PRESTAMOS
+        WHERE ID_USUARIO = SP_ID_USUARIO
+        AND FECHA_DEVOLUCION IS NULL;
+BEGIN
+    FOR PRESTAMO IN C_PRESTAMOS LOOP
+        DBMS_OUTPUT.PUT_LINE('El prestamo: ' || prestamo.ID_PRESTAMO || ' se encuentra activo');
+    END LOOP;
+END;
+
+
+---probamos:
+
+INSERT INTO PRESTAMOS (ID_PRESTAMO, ID_USUARIO, ID_LIBRO, FECHA_PRESTAMO, FECHA_DEVOLUCION)
+VALUES (1008, 14, 178, TO_DATE('2025-03-18', 'YYYY-MM-DD'), NULL);
+
+INSERT INTO PRESTAMOS (ID_PRESTAMO, ID_USUARIO, ID_LIBRO, FECHA_PRESTAMO, FECHA_DEVOLUCION)
+VALUES (1009, 14, 178, TO_DATE('2025-03-18', 'YYYY-MM-DD'), NULL);
+
+EXEC SP_PRESTAMOS_ACTIVOS(14);
+
+
+--12. VERIFICAR DISPONIBILIDAD 
+
+CREATE OR REPLACE PROCEDURE SP_DISPONIBILIDAD (
+    SP_ID_LIBRO IN NUMBER,
+    SP_DISPONIBLE OUT CHAR
+)
+AS
+    CURSOR C_LIBRO IS
+        SELECT DISPONIBLE
+        FROM LIBROS
+        WHERE ID_LIBRO = SP_ID_LIBRO;
+    VDIS CHAR(1);
+BEGIN
+    OPEN C_LIBRO;
+    FETCH C_LIBRO 
+    INTO VDIS;
+    
+    IF C_LIBRO%FOUND THEN
+        SP_DISPONIBLE := VDIS;
+    ELSE
+        SP_DISPONIBLE := 'N';
+    END IF;
+    
+    CLOSE C_LIBRO;
+END;
+
+--PRUEBA:
+
+DECLARE
+    VDISP  CHAR(1); 
+BEGIN
+    SP_DISPONIBILIDAD(SP_ID_LIBRO => 122, SP_DISPONIBLE => VDISP);
+    DBMS_OUTPUT.PUT_LINE('La disponibilidad del libro es: ' || VDISP);
+END;   
+
+/*
+La disponibilidad del libro es: N
+*/
+
+--13. NOMBRE DE USUARIO POR ID
+
+CREATE OR REPLACE PROCEDURE SP_NOMBRE_USUARIO(
+    SP_ID_USUARIO IN NUMBER,
+    SP_NOMBRE OUT VARCHAR2
+)
+AS 
+    CURSOR C_USUARIO IS
+        SELECT NOMBRE
+        FROM USUARIOS
+        WHERE ID_USUARIO = SP_ID_USUARIO;
+    VNOM VARCHAR2(50);
+BEGIN
+    FOR USUARIO IN C_USUARIO LOOP
+        SP_NOMBRE := USUARIO.NOMBRE;
+    END LOOP;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        SP_NOMBRE := NULL;
+END; 
+
+DECLARE
+    V_NOMBRE VARCHAR2(50);
+BEGIN
+     SP_NOMBRE_USUARIO(SP_ID_USUARIO => 14, SP_NOMBRE => V_NOMBRE);
+    
+    
+    DBMS_OUTPUT.PUT_LINE('El nombre del usuario es: ' || V_NOMBRE);
+END;
+
+/*
+El nombre del usuario es: Andrés
+*/
+
+--14. ELIMINAR RESERVA POR ID
+
+CREATE OR REPLACE PROCEDURE SP_ELIMINAR_RESERVA (SP_ID IN NUMBER)
+AS
+    VCOUNT NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO VCOUNT
+    FROM RESERVAS 
+    WHERE ID_RESERVA = SP_ID;
+    
+    IF VCOUNT > 0 THEN
+        DELETE FROM RESERVAS 
+        WHERE ID_RESERVA = SP_ID;
+        
+        COMMIT;
+        
+        DBMS_OUTPUT.PUT_LINE('Reserva con ID ' || SP_ID || ' eliminada exitosamente.');
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('La reserva con ID ' || SP_ID || ' no existe.');
+    END IF;
+END;
+
+--- PRUEBA:
+
+    INSERT INTO RESERVAS (ID_RESERVA, ID_USUARIO, ID_LIBRO, FECHA_RESERVA)
+    VALUES (2005, 13, 110, TO_DATE('2024-03-10', 'YYYY-MM-DD'));
+
+EXEC SP_ELIMINAR_RESERVA(2005);
+
+
+/*
+Reserva con ID 2005 eliminada exitosamente.
+*/
+
+-- 15. LIBROS DISPONIBLES POR CATEGORIA
+
+CREATE OR REPLACE PROCEDURE SP_LIBRO_DIS_CATE(SP_CATE IN VARCHAR2)
+AS
+BEGIN
+    FOR LIBRO IN (SELECT TITULO FROM LIBROS
+        WHERE CATEGORIA = SP_CATE
+        AND DISPONIBLE = 'S')
+    LOOP
+        DBMS_OUTPUT.PUT_LINE('Libro disponible: ' || LIBRO.TITULO);
+    END LOOP;
+END;
+
+EXEC SP_LIBRO_DIS_CATE('Novela');
+
+/*
+Libro disponible: Cien años de soledad
+Libro disponible: El último recuerdo que dejó tu muerte
+*/
+
+--16. TOTAL LIBROS PRESTADOS
+
+CREATE OR REPLACE PROCEDURE SP_LIBROS_PRESTADOS(SP_TOTAL OUT NUMBER)
+AS
+    CURSOR C_PRESTAMOS IS
+        SELECT COUNT(*) AS TOTAL
+        FROM PRESTAMOS
+        WHERE FECHA_DEVOLUCION IS NULL;
+BEGIN
+    OPEN C_PRESTAMOS;
+        FETCH C_PRESTAMOS INTO SP_TOTAL;
+    CLOSE C_PRESTAMOS;
+END;
+
+--PROBAMOS 
+DECLARE
+   VTOTAL NUMBER;
+BEGIN
+   SP_LIBROS_PRESTADOS(VTOTAL);
+   DBMS_OUTPUT.PUT_LINE('Total de libros prestados: ' || V_TOTAL);
+END;
+
+/*
+Total de libros prestados: 2
+*/
+
+--17. ELIMINAR REPORTE POR ID
+
+CREATE OR REPLACE PROCEDURE ELIMINAR_REPORTE(SP_ID IN NUMBER)
+AS
+    VCOUNT NUMBER;
+BEGIN
+    
+    SELECT COUNT(*) INTO VCOUNT FROM REPORTES WHERE ID_REPORTE = SP_ID;
+
+    IF VCOUNT > 0 THEN
+        DELETE FROM REPORTES WHERE ID_REPORTE = SP_ID;
+        DBMS_OUTPUT.PUT_LINE('Reporte con ID ' || SP_ID || ' eliminado correctamente.');
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('No se encontró reporte con ID ' || SP_ID || '.');
+    END IF;
+END;
+
+--- PRUEBA
+
+INSERT INTO REPORTES (ID_REPORTE, TIPO_REPORTE, FECHA_GENERACION)
+VALUES (3004, 'Reporte de Préstamos', TO_DATE('2024-03-18', 'YYYY-MM-DD'));
+
+EXEC ELIMINAR_REPORTE(3004);
+/*
+Reporte con ID 3004 eliminado correctamente.
+*/
+
+EXEC ELIMINAR_REPORTE(3005);
+
+/*
+No se encontró reporte con ID 3005.
+*/
+
+
+--18. PRESTAMOS POR LIBRO
+
+CREATE OR REPLACE PROCEDURE SP_PRESTAMOS_POR_LIBRO(SP_ID_LIBRO IN NUMBER)
+AS
+    CURSOR C_PRESTAMOS IS
+        SELECT ID_PRESTAMO, ID_USUARIO, FECHA_PRESTAMO, FECHA_DEVOLUCION
+        FROM PRESTAMOS
+        WHERE ID_LIBRO = SP_ID_LIBRO
+        AND FECHA_DEVOLUCION IS NULL;
+BEGIN
+    FOR PRESTAMO IN C_PRESTAMOS LOOP
+        DBMS_OUTPUT.PUT_LINE('Préstamo ID: ' || PRESTAMO.ID_PRESTAMO || ' - Usuario ID: ' || PRESTAMO.ID_USUARIO || ' - Fecha de préstamo: ' || TO_CHAR(PRESTAMO.FECHA_PRESTAMO, 'DD-MM-YYYY'));
+    END LOOP;
+END;
+      
+--- PRUEBA:
+
+INSERT INTO PRESTAMOS (ID_PRESTAMO, ID_USUARIO, ID_LIBRO, FECHA_PRESTAMO, FECHA_DEVOLUCION)
+VALUES (1010, 10, 112, TO_DATE('2024-03-01', 'YYYY-MM-DD'), NULL);
+
+EXEC SP_PRESTAMOS_POR_LIBRO(112);
+
+/*
+Préstamo ID: 1010 - Usuario ID: 10 - Fecha de préstamo: 01-03-2024
+*/
+
+--19. USUARIOS POR ROL
+
+CREATE OR REPLACE PROCEDURE SP_USER_POR_ROL(SP_ROL IN VARCHAR2)
+AS
+BEGIN
+    FOR USUARIO IN (SELECT * FROM USUARIOS WHERE ROL = SP_ROL)
+    LOOP
+        DBMS_OUTPUT.PUT_LINE('Usuario: ' || USUARIO.NOMBRE);
+    END LOOP;
+END;
+
+EXEC SP_USER_POR_ROL('USUARIO');
+
+/*
+Usuario: Luisa
+Usuario: Pedro
+Usuario: Laura
+Usuario: Sofía
+Usuario: Ricardo
+Usuario: Sofía
+Usuario: Donatien
+Usuario: Miguel
+Usuario: Martha
+Usuario: Andrés
+Usuario: Sara
+Usuario: Katthy
+Usuario: Carlos
+Usuario: Mónica
+*/
+
+-- 20. TODOS LOS LIBROS
+
+CREATE OR REPLACE PROCEDURE SP_LISTA_LIBROS
+AS
+    VCOUNT NUMBER := 1;
+    VTOTAL NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO VTOTAL FROM LIBROS;
+    
+    DBMS_OUTPUT.PUT_LINE('Total de libros disponibles: ' || VTOTAL || ' ');
+    FOR LIBRO IN(SELECT * FROM LIBROS) LOOP
+        DBMS_OUTPUT.PUT_LINE('Libro ' || VCOUNT || ': ' || LIBRO.TITULO || ' - ' || LIBRO.AUTOR);
+        VCOUNT := VCOUNT + 1;
+    END LOOP;
+END;
+
+
+EXEC SP_LISTA_LIBROS;
+
+/*
+
+Total de libros disponibles: 28
+
+Libro 1: La sombra del viento - Carlos Ruiz Zafón
+Libro 2: 1984 - George Orwell
+Libro 3: Fahrenheit 451 - Ray Bradbury
+Libro 4: El nombre de la rosa - Umberto Eco
+Libro 5: La tregua - Mario Benedetti
+Libro 6: Crónica de una muerte anunciada - Gabriel García Márquez
+Libro 7: Rayuela - Julio Cortázar
+Libro 8: Cumbres Borrascosas - Emily Brontë
+Libro 9: El Gran Gatsby - F. Scott Fitzgerald
+Libro 10: Orgullo y prejuicio - Jane Austen
+Libro 11: Sobreviviendo a las Sombras - Darling Salas
+Libro 12: Los hermanos Karamazov - Fiódor Dostoyevski
+Libro 13: Ulises - James Joyce
+Libro 14: El retrato de Dorian Gray - Oscar Wilde
+Libro 15: El alquimista - Paulo Coelho
+Libro 16: Los miserables - Victor Hugo
+Libro 17: El viento en los sauces - Kenneth Grahame
+Libro 18: Alicia en el país de las maravillas - Lewis Carroll
+Libro 19: La metamorfosis - Franz Kafka
+Libro 20: Moby Dick - Herman Melville
+Libro 21: El conde de Montecristo - Alexandre Dumas
+Libro 22: El Gran Gatsby - F. Scott Fitzgerald
+Libro 23: Título del libro - Autor del libro
+Libro 24: Lágrimas Sigilosas - Darling
+Libro 25: Cien años de soledad - Gabriel García Márquez
+Libro 26: El principito - Antoine de Saint-Exupéry
+Libro 27: Don Quijote de la Mancha - Miguel de Cervantes
+Libro 28: El último recuerdo que dejó tu muerte - Darling Salas
+
+*/
+
+--21. Procedimiento para cambiar el estado de un libro
+CREATE OR REPLACE PROCEDURE SP_CAMBIAR_ESTADO_LIBRO (
+    p_id_libro IN NUMBER,
+    p_nuevo_estado IN CHAR
+) AS
+BEGIN
+    UPDATE LIBROS
+    SET DISPONIBLE = p_nuevo_estado
+    WHERE ID_LIBRO = p_id_libro;
+    COMMIT;
+END;
+
+
+--22. Procedimiento para registrar un pago
+CREATE OR REPLACE PROCEDURE SP_REGISTRAR_PAGO (
+    p_id_pago IN NUMBER,
+    p_id_usuario IN NUMBER,
+    p_monto IN NUMBER,
+    p_fecha_pago IN DATE
+) AS
+BEGIN
+    INSERT INTO PAGOS (ID_PAGO, ID_USUARIO, MONTO, FECHA_PAGO)
+    VALUES (p_id_pago, p_id_usuario, p_monto, p_fecha_pago);
+    COMMIT;
+END;
+
+
+--23. Procedimiento para asignar un rol a un usuario
+CREATE OR REPLACE PROCEDURE SP_ASIGNAR_ROL_USUARIO (
+    p_id_usuario IN NUMBER,
+    p_nuevo_rol IN VARCHAR2
+) AS
+BEGIN
+    UPDATE USUARIOS
+    SET ROL = p_nuevo_rol
+    WHERE ID_USUARIO = p_id_usuario;
+    COMMIT;
+END;
+
+
+--24. Procedimiento para extender la fecha de devolución de un préstamo
+CREATE OR REPLACE PROCEDURE SP_EXTENDER_PRESTAMO (
+    p_id_prestamo IN NUMBER,
+    p_nueva_fecha IN DATE
+) AS
+BEGIN
+    UPDATE PRESTAMOS
+    SET FECHA_DEVOLUCION = p_nueva_fecha
+    WHERE ID_PRESTAMO = p_id_prestamo;
+    COMMIT;
+END;
+
+
+--25.  Procedimiento para generar un reporte de préstamos de un usuario
+CREATE OR REPLACE PROCEDURE SP_REPORTE_PRESTAMOS_USUARIO (
+    p_id_usuario IN NUMBER
+) AS
+    CURSOR c_prestamos IS
+        SELECT ID_LIBRO, FECHA_PRESTAMO, FECHA_DEVOLUCION
+        FROM PRESTAMOS
+        WHERE ID_USUARIO = p_id_usuario;
+BEGIN
+    FOR prestamo_rec IN c_prestamos LOOP
+        DBMS_OUTPUT.PUT_LINE('Libro: ' || prestamo_rec.ID_LIBRO || ' | Prestamo: ' || prestamo_rec.FECHA_PRESTAMO || ' | Devolución: ' || prestamo_rec.FECHA_DEVOLUCION);
+    END LOOP;
+END;
+
+
+-------------------
+FUNCIONES
+-------------------
+
+--1. INSERTAR USUARIO
+
+CREATE OR REPLACE FUNCTION FN_INSERTAR_USUARIO(
+    SP_NOMBRE IN VARCHAR2,
+    SP_CORREO IN VARCHAR2,
+    SP_TELEFONO IN VARCHAR2,
+    SP_ROL IN VARCHAR2
+)
+RETURN VARCHAR2
+AS
+    VALERTA VARCHAR2(80);
+BEGIN
+    INSERT INTO USUARIOS (NOMBRE, CORREO, TELEFONO, ROL)
+    VALUES (SP_NOMBRE, SP_CORREO, SP_TELEFONO, SP_ROL);
+
+    VALERTA := 'El usuario se ha agregado exitosamente: ' || SP_NOMBRE;
+    
+    RETURN VALERTA;
+END;
+    
+
+--2. NOMBRE DE USUARIO POR ID
+
+CREATE OR REPLACE FUNCTION FN_NOM_USUARIO(SP_ID_USUARIO IN NUMBER) 
+RETURN VARCHAR2
+IS
+    VNOM VARCHAR2(50);
+BEGIN
+    SP_NOMBRE_USUARIO(SP_ID_USUARIO, VNOM);
+    IF VNOM IS NULL THEN
+        RETURN 'Usuario no encontrado';
+    ELSE
+        RETURN VNOM;
+    END IF;
+END;
+
+--- 
+DECLARE
+    VRES VARCHAR2(50);
+BEGIN
+    VRES := FN_NOM_USUARIO(1);
+    DBMS_OUTPUT.PUT_LINE(VRES);
+END;
+
+/*
+Usuario no encontrado
+*/
+
+
+--3. ACTUALIZAR DATOS DEL USUARIO
+
+CREATE OR REPLACE FUNCTION FN_ACTUALIZAR_USUARIO (
+    VID IN NUMBER,
+    VNOM IN VARCHAR2,
+    VCORREO IN VARCHAR2,
+    VTEL IN VARCHAR2,
+    VROL IN VARCHAR2
+) 
+RETURN VARCHAR2
+AS
+BEGIN
+    UPDATE USUARIOS
+    SET NOMBRE = VNOM, CORREO = VCORREO, TELEFONO = VTEL, ROL = VROL
+    WHERE ID_USUARIO = VID;
+
+    RETURN 'El usuario ha sido actualizado exitosamente';
+END;
+
+--PRUEBA
+
+DECLARE
+    VRES VARCHAR2(100);
+BEGIN
+    VRES := FN_ACTUALIZAR_USUARIO(1, 'Juan Pérez Actualizado', 'juan.actualizado@correo.com', '555-9999', 'ADMIN');
+    DBMS_OUTPUT.PUT_LINE(VRES);
+END;
+
+/*
+El usuario ha sido actualizado exitosamente
+*/
+
+
+--4. USUARIOS POR ROL
+
+CREATE OR REPLACE FUNCTION FN_USUARIOS_POR_ROL(SP_ROL IN VARCHAR2)
+RETURN VARCHAR2
+IS
+    VRES VARCHAR2(255);
+BEGIN
+    FOR USUARIO IN (SELECT NOMBRE FROM USUARIOS WHERE ROL = SP_ROL)
+    LOOP
+        VRES := VRES || USUARIO.NOMBRE || ', ';
+    END LOOP;
+    
+    IF VRES IS NULL THEN
+        RETURN 'Lo sentimos. No hay usuarios con este rol';
+    ELSE
+        RETURN VRES;
+    END IF;
+END;
+
+-- PRUEBA
+
+DECLARE
+    VRES VARCHAR2(255);
+BEGIN
+    VRES := FN_USUARIOS_POR_ROL('USUARIO');
+    DBMS_OUTPUT.PUT_LINE(VRES);
+END;
+
+/*
+Luisa, Pedro, Laura, Sofía, Ricardo, Sofía, Donatien, Miguel, Martha, Andrés, Sara, Katthy, Carlos, Mónica, 
+*/
+
+--5. TOTAL DE RESERVAS POR USUARIO
+
+CREATE OR REPLACE FUNCTION FN_TOTAL_RESERVAS_USUARIO(SP_ID_USUARIO IN NUMBER)
+RETURN NUMBER
+IS
+    VCONT NUMBER := 0;
+BEGIN
+    FOR RESERVA IN (SELECT * FROM RESERVAS WHERE ID_USUARIO = SP_ID_USUARIO)
+    LOOP
+        VCONT := VCONT + 1;
+    END LOOP;
+    
+    IF VCONT = 0 THEN
+        RETURN 0;
+    ELSE
+        RETURN VCONT;
+    END IF;
+END;
+
+---- PRUEBA
+
+DECLARE
+    VRESERVAS NUMBER;
+BEGIN
+    VRESERVAS := FN_TOTAL_RESERVAS_USUARIO(10);
+    DBMS_OUTPUT.PUT_LINE('Total de reservas: ' || VRESERVAS);
+END;
+
+/*Total de reservas: 0*/
+
+DECLARE
+    VRESERVAS NUMBER;
+BEGIN
+    VRESERVAS := FN_TOTAL_RESERVAS_USUARIO(12);
+    DBMS_OUTPUT.PUT_LINE('Total de reservas: ' || VRESERVAS);
+END;
+
+/*Total de reservas: 2*/
+
+--6. NOMBRE DE LIBRO POR ID
+
+CREATE OR REPLACE FUNCTION FN_NOM_LIBRO(SP_ID_LIBRO IN NUMBER)
+RETURN VARCHAR2
+IS
+    VNOM_LIBRO VARCHAR2(100);
+BEGIN
+    FOR LIBRO IN (SELECT TITULO FROM LIBROS WHERE ID_LIBRO = SP_ID_LIBRO)
+    LOOP
+        VNOM_LIBRO := LIBRO.TITULO;
+    END LOOP;
+    
+     IF VNOM_LIBRO IS NULL THEN
+        RETURN 'Lo siento. El libro no fue encontrado';
+    ELSE
+        RETURN VNOM_LIBRO;
+    END IF;
+END;
+
+--- PRUEBA
+
+DECLARE
+    VLIBRO VARCHAR2(100);
+    VID_LIBRO NUMBER;
+BEGIN
+    VID_LIBRO := 1;
+    VLIBRO := FN_NOM_LIBRO(VID_LIBRO);
+    DBMS_OUTPUT.PUT_LINE('El título del libro es: ' || VLIBRO);
+END;
+
+
+/*El título del libro es: El Gran Gatsby*/
+
+--7. LIBROS PRESTADOS POR CATEGORIA
+
+CREATE OR REPLACE FUNCTION FN_PRESTADOS_CATEG(SP_CATEGORIA IN VARCHAR2)
+RETURN NUMBER
+IS
+    VCONT NUMBER := 0;
+BEGIN
+    FOR PRESTAMO IN (SELECT * FROM PRESTAMOS WHERE ID_LIBRO IN (SELECT ID_LIBRO FROM LIBROS WHERE CATEGORIA = SP_CATEGORIA) AND FECHA_DEVOLUCION IS NULL)
+    LOOP
+        VCONT := VCONT + 1;
+    END LOOP;
+    
+    RETURN VCONT;
+END;
+
+SET SERVEROUTPUT ON;
+
+
+--- PRUEBA: 
+
+DECLARE
+    VRES NUMBER;
+BEGIN
+    VRES := FN_PRESTADOS_CATEG('Novela');
+    DBMS_OUTPUT.PUT_LINE(VRES);
+END;
+
+
+/* 0 */
+
+--8. PRESTAMOS ACTIVOS DEL USUARIO
+
+CREATE OR REPLACE FUNCTION FN_PREST_ACTIVOS(SP_ID_USUARIO IN NUMBER) 
+RETURN CHAR
+IS
+    VCONT NUMBER;
+BEGIN
+    FOR PRESTAMO IN (SELECT * 
+                     FROM PRESTAMOS 
+                     WHERE ID_USUARIO = SP_ID_USUARIO 
+                     AND FECHA_DEVOLUCION IS NULL) 
+    LOOP
+        VCONT := VCONT + 1;
+    END LOOP;
+    
+    IF VCONT > 0 THEN
+        RETURN 'El usuario tiene ' || VCONT || 'préstamos activos';
+    ELSE
+        RETURN 'El usuario no tiene ningún préstamo activo';
+    END IF;
+END;
+
+-- PRUEBA:
+
+DECLARE
+    VRES VARCHAR2(100);
+BEGIN
+    VRES := FN_PREST_ACTIVOS(1);
+    DBMS_OUTPUT.PUT_LINE(VRES);
+END;
+
+/*El usuario no tiene ningún préstamo activo*/
+
+--9. LIBROS DISPONIBLES POR CATEGORIA
+
+CREATE OR REPLACE FUNCTION FN_CAT_DISP(SP_CATEGORIA IN VARCHAR2)
+RETURN VARCHAR2
+IS
+    VRES VARCHAR2(250);
+BEGIN
+    FOR LIBRO IN (SELECT TITULO FROM LIBROS WHERE CATEGORIA = SP_CATEGORIA AND DISPONIBLE = 'S')
+    LOOP
+        VRES := VRES || LIBRO.TITULO || ', ';
+    END LOOP;
+    IF VRES IS NULL THEN
+        RETURN 'No hay libros disponibles en esta categoría';
+    ELSE
+        RETURN VRES;
+    END IF;
+END;
+
+--PRUEBA: 
+SELECT FN_CAT_DISP('Novela') FROM DUAL;
+
+/*Cien años de soledad, El último recuerdo que dejó tu muerte*/
+
+-- 10. TOTAL DE TODOS LOS LIBROS PRESTADOS
+
+CREATE OR REPLACE FUNCTION FN_LIBROS_PRESTADOS 
+RETURN NUMBER
+IS
+    VTOTAL NUMBER;
+BEGIN
+    SP_LIBROS_PRESTADOS(VTOTAL);
+    
+    IF VTOTAL <= 0 THEN
+        RETURN 'No hay libros prestados';
+    ELSE
+        RETURN VTOTAL;
+    END IF;
+END;
+
+
+-- PRUEBA
+
+DECLARE
+    VRES NUMBER;
+BEGIN
+    VRES := FN_LIBROS_PRESTADOS;
+
+    DBMS_OUTPUT.PUT_LINE('Cantidad de libros prestados: ' || VRES);
+END;
+
+/* Cantidad de libros prestados: 3 */
+
+-- 11. PRESTAMOS VENCIDAS
+
+CREATE OR REPLACE FUNCTION FN_PRESTAMOS_VENCIDOS(SP_ID_USUARIO IN NUMBER)
+RETURN NUMBER
+IS
+    VCONT NUMBER := 0;
+BEGIN
+    FOR PRESTAMO IN (SELECT * 
+                     FROM PRESTAMOS 
+                     WHERE ID_USUARIO = SP_ID_USUARIO 
+                     AND FECHA_DEVOLUCION < SYSDATE 
+                     AND FECHA_DEVOLUCION IS NOT NULL) 
+    LOOP
+        VCONT := VCONT + 1;
+    END LOOP;
+    
+    RETURN VCONT;
+END;
+
+-- PRUEBA
+
+DECLARE
+    VRES NUMBER;
+BEGIN
+    VRES := FN_PRESTAMOS_VENCIDOS(12);
+    DBMS_OUTPUT.PUT_LINE('Número de préstamos vencidos: ' || VRES);
+END;
+
+/*Número de préstamos vencidos: 0*/
+    
+
+--12. LIBRO POR TITULO
+
+CREATE OR REPLACE FUNCTION FN_LIBRO_POR_TITULO(SP_TITULO IN VARCHAR2)
+RETURN VARCHAR2
+IS
+    VTITULO VARCHAR2(100);
+BEGIN
+    FOR LIBRO IN (SELECT TITULO FROM LIBROS WHERE TITULO = SP_TITULO)
+    LOOP
+        VTITULO := LIBRO.TITULO;
+    END LOOP;
+    
+    IF VTITULO IS NULL THEN
+        RETURN 'Lo siento. El libro no fue encontrado';
+    ELSE
+        RETURN VTITULO;
+    END IF;
+END;
+
+-- PRUEBA: 
+DECLARE
+    VRES VARCHAR2(100);
+BEGIN
+    VRES := FN_LIBRO_POR_TITULO('Marchitos');
+    DBMS_OUTPUT.PUT_LINE(' ' || VRES);
+END;
+
+/*Lo siento. El libro no fue encontrado*/
+    
+--13. LIBROS MAS PRESTADOS
+
+CREATE OR REPLACE FUNCTION FN_LIBROS_MAS_PRESTADOS
+RETURN VARCHAR2
+IS
+    VRES VARCHAR2(255);
+BEGIN
+    FOR LIBRO IN (SELECT TITULO, COUNT(*) AS NUM_PRESTAMOS
+                  FROM PRESTAMOS
+                  JOIN LIBROS ON PRESTAMOS.ID_LIBRO = LIBROS.ID_LIBRO
+                  WHERE PRESTAMOS.ID_LIBRO IS NOT NULL
+                  GROUP BY TITULO
+                  ORDER BY NUM_PRESTAMOS DESC)
+    LOOP
+        VRES := VRES || LIBRO.TITULO || ' - ' || LIBRO.NUM_PRESTAMOS || ' préstamos, ';
+    END LOOP;
+    
+    IF VRES = '' THEN
+        RETURN 'No hay libros prestados';
+    ELSE
+        RETURN VRES;
+    END IF;
+END;
+
+---PRUEBA 
+
+DECLARE
+    VRES VARCHAR2(255);
+BEGIN
+    VRES := FN_LIBROS_MAS_PRESTADOS;
+    DBMS_OUTPUT.PUT_LINE('Libros más prestados: ' || VRES);
+END;
+
+/*
+Libros más prestados: Lágrimas Sigilosas - 2 préstamos, Cien años de soledad - 1 préstamos, Cumbres Borrascosas - 1 préstamos, El principito - 1 préstamos, Don Quijote de la Mancha - 1 préstamos
+*/
+
+
+--14. TIPO DE REPORTE POR ID
+
+CREATE OR REPLACE FUNCTION FN_BUSCAR_TIPO_REPORTE(SP_ID_REPORTE IN NUMBER)
+RETURN VARCHAR2
+IS
+    VREPORTE VARCHAR2(100);
+BEGIN
+    SELECT TIPO_REPORTE
+    INTO VREPORTE
+    FROM REPORTES
+    WHERE ID_REPORTE = SP_ID_REPORTE;
+    
+    IF VREPORTE IS NULL THEN
+        RETURN 'Reporte no encontrado';
+    ELSE
+        RETURN VREPORTE;
+    END IF;
+END;
+
+--15. OBTENER NOMBRE COMPLETO DEL USUAIRO
+CREATE OR REPLACE FUNCTION ObtenerNombreUsuario(FN_ID_USUARIO IN NUMBER)
+RETURN VARCHAR2 AS
+    VNOM VARCHAR2(200);
+BEGIN
+    SELECT NOMBRE || ' ' || APELLIDO INTO VNOM
+    FROM USUARIOS
+    WHERE ID_USUARIO = FN_ID_USUARIO;
+    
+    RETURN VNOM;
+END;
